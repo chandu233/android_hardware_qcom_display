@@ -101,6 +101,7 @@ DisplayError HWCDisplayResolutionExtn::GetExtendedDisplayResolutions(uint32_t pa
       for (XMLElement *scaling_node = panel_res_node->FirstChildElement();
            scaling_node != nullptr; scaling_node = scaling_node->NextSiblingElement()) {
         double res_x = 0.0, res_y = 0.0;
+        uint32_t res_overlap = 0;
 
         if (!strcmp(scaling_node->Name(), "ScalingFactor")) {
           const char *x = scaling_node->Attribute("x");
@@ -119,11 +120,15 @@ DisplayError HWCDisplayResolutionExtn::GetExtendedDisplayResolutions(uint32_t pa
         } else if (!strcmp(scaling_node->Name(), "ScalingResolution")) {
           const char *w = scaling_node->Attribute("w");
           const char *h = scaling_node->Attribute("h");
+          const char *overlap = scaling_node->Attribute("overlap");
           if (w == nullptr || h == nullptr) {
             continue;
           }
           res_x = std::atof(w);
           res_y = std::atof(h);
+          if (overlap) {
+            res_overlap = std::atof(overlap);
+          }
         }
 
         if (!res_x || !res_y) {
@@ -139,6 +144,11 @@ DisplayError HWCDisplayResolutionExtn::GetExtendedDisplayResolutions(uint32_t pa
         if ((floor(res_x) == res_x) && (floor(res_y) == res_y) && (UINT32(res_x) % 2 == 0) &&
             (UINT32(res_y) % 2 == 0) &&
             (display_to_mixer_aspect_ratio <= aspect_ratio_threshold_)) {
+          extended_disp_res->push_back(std::make_pair(UINT32(res_x), UINT32(res_y)));
+        } else if (res_overlap && (floor(res_x) == res_x) && (floor(res_y) == res_y) &&
+                   (UINT32(res_x) % 2 == 0) && (UINT32(res_y) % 2 == 0)) {
+          DLOGI("Mode for Overlap Feature: x_res = %f y_res = %f panel w = %d panel h = %d",
+                res_x, res_y, p_width, p_height);
           extended_disp_res->push_back(std::make_pair(UINT32(res_x), UINT32(res_y)));
         } else {
           DLOGI("scaling resolution: %f x %f is invalid", res_x, res_y);
