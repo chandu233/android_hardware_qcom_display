@@ -296,7 +296,6 @@ class DisplayBuiltIn : public DisplayBase, HWEventHandler, DppsPropIntf {
   void SetColorGCInFOD(bool active);
   std::shared_ptr<pxlw::IrisHal> iris_hal_;
   int32_t last_fod_status_ = 0;
-  bool iris_gc_in_fod_ = false;
 #endif
   float cached_brightness_ = 0.0f;
   bool pending_brightness_ = false;

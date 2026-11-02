@@ -76,13 +76,9 @@
 #include "hw_device_drm.h"
 
 #ifdef OPLUS_FINGERPRINT_MASK
-#define BIT(nr) (1UL << (nr))
 enum oplus_ofp_property_value {
-    OPLUS_OFP_PROPERTY_NONE = 0,
-    OPLUS_OFP_PROPERTY_DIM_LAYER = BIT(0),
-    OPLUS_OFP_PROPERTY_FINGERPRESS_LAYER = BIT(1),
-    OPLUS_OFP_PROPERTY_ICON_LAYER = BIT(2),
-    OPLUS_OFP_PROPERTY_AOD_LAYER = BIT(3),
+    OPLUS_OFP_PROPERTY_DIM_LAYER = 1 << 0,
+    OPLUS_OFP_PROPERTY_FINGERPRESS_LAYER = 1 << 1,
 };
 #endif
 #ifdef UDFPS_ZPOS

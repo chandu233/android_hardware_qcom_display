@@ -990,11 +990,6 @@ void DisplayBuiltIn::SetColorGCInFOD(bool active) {
   constexpr int kIrisConfigType = 528;
   constexpr int kIrisBypassGC = 9;
 
-  if (iris_gc_in_fod_ == active) {
-    return;
-  }
-  iris_gc_in_fod_ = active;
-
   if (!iris_hal_) {
     iris_hal_ = std::make_shared<pxlw::IrisHal>();
   }

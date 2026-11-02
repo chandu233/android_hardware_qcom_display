@@ -596,7 +596,7 @@ struct LayerStack {
   uint64_t expected_present_time = 0;  //!< Expected Present timestamp for current frame.
 
   // Keep last: prebuilt sdm libraries rely on the layout of the members above.
-  int32_t fod_status = 0;              //!< Non zero while the UDFPS dim layer is present.
+  int32_t fod_status = 0;              //!< Non zero while FOD is active.
 };
 
 // clang-format on

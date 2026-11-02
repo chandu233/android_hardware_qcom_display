@@ -24,8 +24,6 @@ class PxlwIris7AidlWrapper {
   PxlwIris7AidlWrapper();
   virtual ~PxlwIris7AidlWrapper();
 
-  bool HasSoftIris();
-
   int InitPrimaryDisplay(int32_t vsync_period_ns, uint32_t width, uint32_t height);
   void SetColorModeWithRenderIntent(int32_t display_id, int32_t, int32_t colorMode,
                                     int32_t renderIntent);
@@ -38,8 +36,6 @@ class PxlwSoftirisWrapper {
  public:
   PxlwSoftirisWrapper();
   virtual ~PxlwSoftirisWrapper();
-
-  bool HasSoftIris();
 
   int InitPrimaryDisplay(int32_t vsync_period_ns, uint32_t width, uint32_t height);
   void SetColorModeWithRenderIntent(int32_t display_id, int32_t, int32_t colorMode,
