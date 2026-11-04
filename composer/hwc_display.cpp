@@ -56,6 +56,10 @@
 #include <hardware/display_defs.h>
 #endif
 
+#ifdef PXLW_IRIS7
+#include <pxlw_iris_wrapper.h>
+#endif
+
 #ifdef OPLUS_FINGERPRINT_MASK
 #include <UdfpsExtension.h>
 static constexpr char kUdfpsTouchedLayerName[] = "SurfaceView[UdfpsControllerOverlay]";
@@ -731,6 +735,9 @@ HWC3::Error HWCDisplay::CreateLayer(LayerId *out_layer_id) {
 
   layer_map_.emplace(std::make_pair(layer->GetId(), layer));
   *out_layer_id = layer->GetId();
+#ifdef PXLW_IRIS7
+  layer->CreateIrisLayer();
+#endif
   geometry_changes_ |= GeometryChanges::kAdded;
   layer_stack_invalid_ = true;
 
@@ -1214,8 +1221,24 @@ HWC3::Error HWCDisplay::SetPowerMode(PowerMode mode, bool teardown) {
   }
   shared_ptr<Fence> release_fence = nullptr;
 
+#ifdef PXLW_IRIS7
+  pxlw::PxlwIris7AidlWrapper *iris = nullptr;
+  if (id_ == HWC_DISPLAY_PRIMARY) {
+    iris = reinterpret_cast<pxlw::PxlwIris7AidlWrapper *>(pxlw::PxlwIrisWrapper::GetInstance());
+  }
+  if (iris) {
+    iris->BeforeSetPowerMode(id_, INT32(mode), false);
+  }
+#endif
+
   ATRACE_INT("SetPowerMode ", state);
   DisplayError error = display_intf_->SetDisplayState(state, teardown, &release_fence);
+
+#ifdef PXLW_IRIS7
+  if (iris) {
+    iris->AfterSetPowerMode(id_, INT32(error == kErrorNone ? mode : current_power_mode_), false);
+  }
+#endif
 
   if (error == kErrorNone) {
     flush_on_error_ = flush_on_error;
@@ -1568,6 +1591,9 @@ HWC3::Error HWCDisplay::SetActiveConfig(Config config) {
   // Store config index to be applied upon refresh.
   pending_config_ = true;
   pending_config_index_ = config;
+#ifdef PXLW_IRIS7
+  SetIrisActiveConfig(config);
+#endif
 
   // Trigger refresh. This config gets applied on next commit.
   callbacks_->Refresh(id_);
@@ -3036,12 +3062,22 @@ void HWCDisplay::UpdateActiveConfig() {
     return;
   }
 
+#ifdef PXLW_IRIS7
+  if (!IsIrisActiveConfigAllowed()) {
+    callbacks_->Refresh(id_);
+    return;
+  }
+#endif
+
   int active_config = GetActiveConfigIndex();
   if (IsVirtualConfig(pending_config_index_) ||
       (active_config >= 0 && IsVirtualConfig(UINT32(active_config)))) {
     pending_config_ = false;
     if (SubmitDisplayConfig(pending_config_index_) != HWC3::Error::None) {
       DLOGI("Failed to set %d config", INT(pending_config_index_));
+#ifdef PXLW_IRIS7
+      iris_config_index_ = -1;
+#endif
     }
     return;
   }
@@ -3049,6 +3085,9 @@ void HWCDisplay::UpdateActiveConfig() {
   DisplayError error = display_intf_->SetActiveConfig(pending_config_index_);
   if (error != kErrorNone) {
     DLOGI("Failed to set %d config", INT(pending_config_index_));
+#ifdef PXLW_IRIS7
+    iris_config_index_ = -1;
+#endif
   } else {
     SetActiveConfigIndex(pending_config_index_);
   }
@@ -3160,6 +3199,13 @@ void HWCDisplay::ProcessActiveConfigChange() {
     return;
   }
 
+#ifdef PXLW_IRIS7
+  if (!IsIrisActiveConfigAllowed()) {
+    callbacks_->Refresh(id_);
+    return;
+  }
+#endif
+
   DTRACE_SCOPED();
   VsyncPeriodNanos vsync_period;
   if (GetVsyncPeriodByActiveConfig(&vsync_period) == HWC3::Error::None) {
@@ -3213,9 +3259,38 @@ std::tuple<int64_t, int64_t> HWCDisplay::RequestActiveConfigChange(
   pending_refresh_rate_config_ = config;
   pending_refresh_rate_refresh_time_ = refresh_time;
   pending_refresh_rate_applied_time_ = applied_time;
+#ifdef PXLW_IRIS7
+  SetIrisActiveConfig(config);
+#endif
 
   return std::make_tuple(refresh_time, applied_time);
 }
+
+#ifdef PXLW_IRIS7
+void HWCDisplay::SetIrisActiveConfig(Config config) {
+  auto iris = reinterpret_cast<pxlw::PxlwIris7AidlWrapper *>(pxlw::PxlwIrisWrapper::GetInstance());
+  if (id_ != HWC_DISPLAY_PRIMARY || !iris) {
+    return;
+  }
+
+  // Iris has to leave MEMC before the panel timing changes.
+  DisplayConfigVariableInfo info = {};
+  if (GetDisplayAttributesForConfig(INT(config), &info) == 0) {
+    iris->SetActiveConfig(INT32(id_), type_, config, &info);
+  }
+}
+
+bool HWCDisplay::IsIrisActiveConfigAllowed() {
+  auto iris = reinterpret_cast<pxlw::PxlwIris7AidlWrapper *>(pxlw::PxlwIrisWrapper::GetInstance());
+  if (id_ != HWC_DISPLAY_PRIMARY || !iris) {
+    return true;
+  }
+
+  // reserved[0] is allow_active_config.
+  auto config = iris->GetCurrentIrisConfig();
+  return config.reserved.size() == 0 || config.reserved[0] != 0;
+}
+#endif
 
 std::tuple<int64_t, int64_t> HWCDisplay::EstimateVsyncPeriodChangeTimeline(
     VsyncPeriodNanos current_vsync_period, int64_t desired_time) {
